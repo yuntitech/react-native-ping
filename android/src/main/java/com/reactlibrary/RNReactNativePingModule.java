@@ -3,6 +3,7 @@ package com.reactlibrary;
 
 import android.net.TrafficStats;
 import android.os.Handler;
+import android.util.Log;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Promise;
@@ -12,13 +13,34 @@ import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.List;
+
+import okhttp3.Dns;
+
 public class RNReactNativePingModule extends ReactContextBaseJavaModule {
     private final String TIMEOUT_KEY = "timeout";
+    private final String KEY_COUNT = "count";
     private final ReactApplicationContext reactContext;
 
     public RNReactNativePingModule(ReactApplicationContext reactContext) {
         super(reactContext);
         this.reactContext = reactContext;
+    }
+
+    @ReactMethod
+    public void startWithHost(final String host, ReadableMap option, final Promise promise) {
+        try {
+            List<InetAddress> addressList = Dns.SYSTEM.lookup(host);
+            if (addressList.size() > 0) {
+                start(addressList.get(0).getHostAddress(), option, promise);
+            }
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+            LHDefinition.PING_ERROR_CODE error = LHDefinition.PING_ERROR_CODE.HostErrorUnknown;
+            promise.reject(error.getCode(), error.getMessage());
+        }
     }
 
     @ReactMethod
@@ -34,7 +56,12 @@ public class RNReactNativePingModule extends ReactContextBaseJavaModule {
         if (option.hasKey(TIMEOUT_KEY)) {
             timeout = option.getInt(TIMEOUT_KEY);
         }
+        int count = 1;
+        if (option.hasKey(KEY_COUNT)) {
+            count = option.getInt(KEY_COUNT);
+        }
         final int finalTimeout = timeout;
+        final int finalCount = count;
         new Handler().post(new Runnable() {
             @Override
             public void run() {
@@ -42,8 +69,8 @@ public class RNReactNativePingModule extends ReactContextBaseJavaModule {
                     if (isFinish[0]) {
                         return;//Prevent multiple calls
                     }
-                    int rtt = PingUtil.getAvgRTT(ipAddress, 1, finalTimeout);
-                    promise.resolve(Integer.valueOf(rtt));
+                    int rtt = PingUtil.getAvgRTT(ipAddress, finalCount, finalTimeout);
+                    promise.resolve(rtt);
                     isFinish[0] = true;
                 } catch (Exception e) {
                     if (isFinish[0]) {//Prevent multiple calls
