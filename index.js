@@ -5,7 +5,7 @@ class Ping {
   /**
    *
    * Get RTT (Round-trip delay time)
-   * 
+   *
    * @static
    * @param {string} ipAddress - For example : 8.8.8.8
    * @param {Object} option - Some optional operations
@@ -19,6 +19,10 @@ class Ping {
   }
   static async getTrafficStats() {
     const result = await RNReactNativePing.getTrafficStats();
+    return result;
+  }
+  static async startWithHost(host, option) {
+    const result = await RNReactNativePing.startWithHost(host, option);
     return result;
   }
 }
