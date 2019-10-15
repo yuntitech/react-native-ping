@@ -2,8 +2,8 @@
 package com.reactlibrary;
 
 import android.net.TrafficStats;
+import android.os.AsyncTask;
 import android.os.Handler;
-import android.util.Log;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Promise;
@@ -16,6 +16,7 @@ import com.facebook.react.bridge.WritableMap;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.List;
+import java.util.concurrent.Executor;
 
 import okhttp3.Dns;
 
@@ -23,10 +24,12 @@ public class RNReactNativePingModule extends ReactContextBaseJavaModule {
     private final String TIMEOUT_KEY = "timeout";
     private final String KEY_COUNT = "count";
     private final ReactApplicationContext reactContext;
+    private Executor mExecutor;
 
     public RNReactNativePingModule(ReactApplicationContext reactContext) {
         super(reactContext);
         this.reactContext = reactContext;
+        mExecutor = AsyncTask.THREAD_POOL_EXECUTOR;
     }
 
     @ReactMethod
@@ -34,7 +37,8 @@ public class RNReactNativePingModule extends ReactContextBaseJavaModule {
         try {
             List<InetAddress> addressList = Dns.SYSTEM.lookup(host);
             if (addressList.size() > 0) {
-                start(addressList.get(0).getHostAddress(), option, promise);
+                String address = addressList.get(0).getHostAddress();
+                start(address, option, promise);
             }
         } catch (UnknownHostException e) {
             e.printStackTrace();
@@ -62,7 +66,7 @@ public class RNReactNativePingModule extends ReactContextBaseJavaModule {
         }
         final int finalTimeout = timeout;
         final int finalCount = count;
-        new Handler().post(new Runnable() {
+        mExecutor.execute(new Runnable() {
             @Override
             public void run() {
                 try {
@@ -83,10 +87,14 @@ public class RNReactNativePingModule extends ReactContextBaseJavaModule {
                 }
             }
         });
-
-        new Handler().postDelayed(new Runnable() {
+        mExecutor.execute(new Runnable() {
             @Override
             public void run() {
+                try {
+                    Thread.sleep(finalTimeout * finalCount);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
                 if (isFinish[0]) {//Prevent multiple calls
                     return;
                 }
@@ -94,7 +102,7 @@ public class RNReactNativePingModule extends ReactContextBaseJavaModule {
                 promise.reject(error.getCode(), error.getMessage());
                 isFinish[0] = true;
             }
-        }, timeout);
+        });
 
     }
 
