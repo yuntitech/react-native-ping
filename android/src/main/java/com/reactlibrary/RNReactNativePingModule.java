@@ -77,16 +77,13 @@ public class RNReactNativePingModule extends ReactContextBaseJavaModule {
                     promise.resolve(rtt);
                     isFinish[0] = true;
                 } catch (Exception e) {
-                    if (isFinish[0]) {//Prevent multiple calls
-                        return;
-                    }
                     LHDefinition.PING_ERROR_CODE error =
                             LHDefinition.PING_ERROR_CODE.HostErrorUnknown;
-                    promise.reject(error.getCode(), error.getMessage());
-                    isFinish[0] = true;
+                    rejectPromise(isFinish,promise,error.getCode(),error.getMessage());
                 }
             }
         });
+
         mExecutor.execute(new Runnable() {
             @Override
             public void run() {
@@ -95,15 +92,18 @@ public class RNReactNativePingModule extends ReactContextBaseJavaModule {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-                if (isFinish[0]) {//Prevent multiple calls
-                    return;
-                }
                 LHDefinition.PING_ERROR_CODE error = LHDefinition.PING_ERROR_CODE.Timeout;
-                promise.reject(error.getCode(), error.getMessage());
-                isFinish[0] = true;
+                rejectPromise(isFinish,promise,error.getCode(),error.getMessage());
             }
         });
+    }
 
+    private synchronized void rejectPromise(boolean[] isFinish,Promise promise,String errCode,String errMsg){
+        if (isFinish[0]){
+            return;
+        }
+        promise.reject(errCode,errMsg);
+        isFinish[0] = true;
     }
 
     @ReactMethod
